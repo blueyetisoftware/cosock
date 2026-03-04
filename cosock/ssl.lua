@@ -76,14 +76,14 @@ m.want = passthrough("want")
 
 m.wrap = function(tcp_socket, config)
   assert(tcp_socket.inner_sock, "tcp inner_sock is null")
-  local inner_sock, err = luasec.wrap(tcp_socket.inner_sock, config)
-  if not inner_sock then
-    return inner_sock, err
+  local wrapped_sock, err = luasec.wrap(tcp_socket.inner_sock, config)
+  if err or not wrapped_sock then
+    return wrapped_sock, err
   end
-  inner_sock:settimeout(0)
+  wrapped_sock:settimeout(0)
   return setmetatable({
-    inner_sock = inner_sock,
-    tcp_socket = tcp_socket,  -- Store reference to underlying TCP socket
+    inner_sock = wrapped_sock, -- wrapped now becomes inner
+    tcp_socket = tcp_socket,  -- tcp is essentially inner-inner
     class = "tls{}"
   }, {
     __index = function(self, key)
