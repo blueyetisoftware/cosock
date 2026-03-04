@@ -81,7 +81,29 @@ m.wrap = function(tcp_socket, config)
     return inner_sock, err
   end
   inner_sock:settimeout(0)
-  return setmetatable({inner_sock = inner_sock, class = "tls{}"}, {__index = m})
+  return setmetatable({
+    inner_sock = inner_sock,
+    tcp_socket = tcp_socket,  -- Store reference to underlying TCP socket
+    class = "tls{}"
+  }, {
+    __index = function(self, key)
+      -- SSL wrapper takes precedence - check SSL methods first
+      if m[key] then
+        return m[key]
+      end
+      -- Then check inner_sock (SSL object) for SSL implementations
+      if self.inner_sock and self.inner_sock[key] then
+        return self.inner_sock[key]
+      end
+      -- Finally check TCP socket for underlying socket methods
+      if self.tcp_socket and self.tcp_socket[key] then
+        return function(...)
+          return self.tcp_socket[key](self.tcp_socket, select(2, ...))
+        end
+      end
+      return nil
+    end
+  })
 end
 
 function m:settimeout(timeout)
